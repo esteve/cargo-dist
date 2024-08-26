@@ -5,6 +5,7 @@ use camino::Utf8PathBuf;
 use semver::Version;
 use serde::Deserialize;
 
+use crate::config::MacPkgConfig;
 use crate::{
     config::{
         self, CiStyle, CompressionImpl, Config, DistMetadata, HostingStyle, InstallPathStrategy,
@@ -1034,6 +1035,7 @@ fn apply_dist_to_metadata(metadata: &mut toml_edit::Item, meta: &DistMetadata) {
         github_release,
         package_libraries,
         install_libraries,
+        mac_pkg_config,
         // These settings are complex enough that we don't support editing them in init
         extra_artifacts: _,
         github_custom_runners: _,
@@ -1041,7 +1043,6 @@ fn apply_dist_to_metadata(metadata: &mut toml_edit::Item, meta: &DistMetadata) {
         bin_aliases: _,
         system_dependencies: _,
         github_build_setup: _,
-        mac_pkg_config: _,
     } = &meta;
 
     // Forcibly inline the default install_path if not specified,
@@ -1081,6 +1082,13 @@ fn apply_dist_to_metadata(metadata: &mut toml_edit::Item, meta: &DistMetadata) {
         "installers",
         "# The installers to generate for each app\n",
         installers.as_ref(),
+    );
+
+    apply_optional_mac_pkg(
+        table,
+        "mac-pkg-config",
+        "\n# Configuration for the Mac .pkg installer\n",
+        mac_pkg_config.as_ref(),
     );
 
     apply_optional_value(
@@ -1490,6 +1498,29 @@ where
         } else {
             apply_string_list(table, key, desc, Some(items))
         }
+    } else {
+        table.remove(key);
+    }
+}
+
+/// Similar to [`apply_optional_value`][] but specialized to `MacPkgConfig`, since we're not able to work with structs dynamically
+fn apply_optional_mac_pkg(
+    table: &mut toml_edit::Table,
+    key: &str,
+    desc: &str,
+    val: Option<&MacPkgConfig>,
+) {
+    if let Some(mac_pkg_config) = val {
+        let new_item = &mut table[key];
+        let mut new_table = toml_edit::table();
+        if let Some(new_table) = new_table.as_table_mut() {
+            new_table.insert("identifier", toml_edit::value(&mac_pkg_config.identifier));
+            if let Some(location) = &mac_pkg_config.install_location {
+                new_table.insert("install-location", toml_edit::value(location));
+            }
+            new_table.decor_mut().set_prefix(desc);
+        }
+        new_item.or_insert(new_table);
     } else {
         table.remove(key);
     }
