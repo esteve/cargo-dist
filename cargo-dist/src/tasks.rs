@@ -2556,6 +2556,8 @@ impl<'pkg_graph> DistGraphBuilder<'pkg_graph> {
             };
 
             let bin_aliases = bin_aliases.for_target(&variant.target);
+            let macos_sign = self.inner.macos_sign;
+            let host_target = self.inner.tools.cargo.host_target.clone();
 
             // Gather up the bundles the installer supports
             let installer_artifact = Artifact {
@@ -2581,6 +2583,8 @@ impl<'pkg_graph> DistGraphBuilder<'pkg_graph> {
                         .unwrap_or("/usr/local".to_owned()),
                     version: release.version.to_string(),
                     bin_aliases,
+                    macos_sign,
+                    host_target,
                 })),
                 is_global: false,
             };
